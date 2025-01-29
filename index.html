@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot Web</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            text-align: center;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            display: inline-block;
+            min-width: 50%;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Interactuar con el Bot de Telegram</h1>
+    <input type="text" id="command" placeholder="Escribe un comando...">
+    <button onclick="sendCommand()">Enviar</button>
+
+    <div id="response"></div>
+
+    <script>
+        async function sendCommand() {
+            const command = document.getElementById("command").value;
+            const responseDiv = document.getElementById("response");
+
+            if (!command.trim()) {
+                responseDiv.innerHTML = "<p style='color: red;'>Por favor, ingresa un comando.</p>";
+                return;
+            }
+
+            responseDiv.innerHTML = "<p>Enviando...</p>";
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/send_command", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const data = await response.json();
+                responseDiv.innerHTML = `<p><strong>Respuesta:</strong> ${data.response}</p>`;
+            } catch (error) {
+                responseDiv.innerHTML = "<p style='color: red;'>Error al enviar el comando.</p>";
+            }
+        }
+    </script>
+
+</body>
+</html>
