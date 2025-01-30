@@ -32,7 +32,7 @@ class CommandRequest(BaseModel):
 @app.on_event("startup")
 async def startup():
     await client.start()
-    print("Conectado a Telegram.")
+    print("✅ Conectado a Telegram.")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -59,6 +59,24 @@ async def send_command(request: CommandRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# 🔹 Esto estaba mal indentado. Ahora está correctamente afuera de la función send_command
+@app.get("/get_last_messages")
+async def get_last_messages():
+    """
+    Obtiene los últimos 10 mensajes enviados y recibidos en Telegram.
+    """
+    try:
+        messages = []
+        async for message in client.iter_messages(BOT_USERNAME, limit=10):
+            messages.append({
+                "from": "Yo" if message.out else "Bot",
+                "text": message.text,
+                "date": message.date.strftime("%Y-%m-%d %H:%M:%S")
+            })
+        return {"messages": messages[::-1]}  # Invertimos la lista para mostrar en orden cronológico
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# 🔹 Corrección: Esto debe estar bien indentado para ejecutarse correctamente
 if __name__ == "__main__":
     uvicorn.run("bot_backend:app", host="0.0.0.0", port=8000, reload=True)
