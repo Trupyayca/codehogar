@@ -5,6 +5,7 @@ from telethon import TelegramClient
 import asyncio
 import uvicorn
 import time
+import re  # Para validar el formato del email
 
 # Configuración de Telegram
 API_ID = "27613963"
@@ -53,26 +54,29 @@ async def send_command(request: CommandRequest):
     try:
         command_parts = request.command.split(" ")
         if len(command_parts) != 2:
-            raise HTTPException(status_code=400, detail="Formato incorrecto. Usa /code email o /hogar email")
+            raise HTTPException(status_code=400, detail="⚠️ Por favor, verifique el formato del correo que ingresó.")
 
         command_type, email = command_parts
-        email_parts = email.split("@")
-        if len(email_parts) != 2:
-            raise HTTPException(status_code=400, detail="Correo inválido.")
 
+        # 🔹 Validar el formato del email con expresión regular
+        email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        if not re.match(email_regex, email):
+            raise HTTPException(status_code=400, detail="⚠️ Por favor, verifique el formato del correo que ingresó.")
+
+        email_parts = email.split("@")
         domain = email_parts[1]
 
         # 🔹 Validar si el dominio está permitido
         if domain not in ALLOWED_DOMAINS:
-            raise HTTPException(status_code=403, detail="❌ Este correo no se puede consultar en esta web.")
+            raise HTTPException(status_code=403, detail="❌ Este correo no pertenece a este sitio web.")
 
         # 🔹 Evitar envíos seguidos (5 minutos de espera)
         current_time = time.time()
         last_sent = last_sent_messages.get(email)
 
-        if last_sent and (current_time - last_sent < 300):  # 300 segundos = 5 minutos
-            if last_sent_messages[email]["command"] == command_type:
-                raise HTTPException(status_code=429, detail="⏳ Este correo ya fue enviado. Espera 5 minutos antes de intentarlo nuevamente.")
+        if last_sent and (current_time - last_sent["time"] < 300):  # 300 segundos = 5 minutos
+            if last_sent["command"] == command_type:
+                raise HTTPException(status_code=429, detail="⏳ Ya estamos procesando su petición, no reenvíe muy seguido el código.")
 
         # Guardar el último envío de este email
         last_sent_messages[email] = {"command": command_type, "time": current_time}
@@ -93,7 +97,7 @@ async def send_command(request: CommandRequest):
         raise http_err  # Retornar errores personalizados
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error inesperado: {str(e)}")
 
 @app.get("/get_last_messages")
 async def get_last_messages():
