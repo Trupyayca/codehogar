@@ -4,11 +4,18 @@ from pydantic import BaseModel
 from telethon import TelegramClient
 import asyncio
 import uvicorn
+import time
 
 # Configuración de Telegram
 API_ID = "27613963"
 API_HASH = "ac3495a2287928fba9d6d0b889e4e60b"
 BOT_USERNAME = "@CODIGO_HOGAR_BOT"  # Cambia esto por el nombre de usuario del BOT
+
+# Lista de dominios permitidos
+ALLOWED_DOMAINS = ["xventas.xyz", "rtjg99.com", "gust11.com", "xposemail.com", "rtjg77.com"]
+
+# Almacenar los últimos envíos (email -> timestamp)
+last_sent_messages = {}
 
 # Crear cliente de Telegram
 client = TelegramClient("mi_sesion", API_ID, API_HASH)
@@ -41,10 +48,36 @@ async def shutdown():
 @app.post("/send_command")
 async def send_command(request: CommandRequest):
     """
-    Envía un comando al BOT y espera la respuesta.
+    Envía un comando al BOT y valida el email antes de enviarlo.
     """
     try:
-        # Enviar el comando al BOT
+        command_parts = request.command.split(" ")
+        if len(command_parts) != 2:
+            raise HTTPException(status_code=400, detail="Formato incorrecto. Usa /code email o /hogar email")
+
+        command_type, email = command_parts
+        email_parts = email.split("@")
+        if len(email_parts) != 2:
+            raise HTTPException(status_code=400, detail="Correo inválido.")
+
+        domain = email_parts[1]
+
+        # 🔹 Validar si el dominio está permitido
+        if domain not in ALLOWED_DOMAINS:
+            raise HTTPException(status_code=403, detail="❌ Este correo no se puede consultar en esta web.")
+
+        # 🔹 Evitar envíos seguidos (5 minutos de espera)
+        current_time = time.time()
+        last_sent = last_sent_messages.get(email)
+
+        if last_sent and (current_time - last_sent < 300):  # 300 segundos = 5 minutos
+            if last_sent_messages[email]["command"] == command_type:
+                raise HTTPException(status_code=429, detail="⏳ Este correo ya fue enviado. Espera 5 minutos antes de intentarlo nuevamente.")
+
+        # Guardar el último envío de este email
+        last_sent_messages[email] = {"command": command_type, "time": current_time}
+
+        # 🔹 Enviar el mensaje a Telegram
         await client.send_message(BOT_USERNAME, request.command)
 
         # Esperar la respuesta del BOT
@@ -55,6 +88,9 @@ async def send_command(request: CommandRequest):
             await asyncio.sleep(1)  # Esperar un segundo antes de intentar de nuevo
 
         raise HTTPException(status_code=500, detail="No se recibió respuesta del BOT en el tiempo esperado.")
+
+    except HTTPException as http_err:
+        raise http_err  # Retornar errores personalizados
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
