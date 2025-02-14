@@ -6,6 +6,9 @@ import asyncio
 import uvicorn
 import time
 import re  # Para validar el formato del email
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Configuración de Telegram
 API_ID = "27613963"
