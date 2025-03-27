@@ -84,7 +84,13 @@ async def send_command(request: CommandRequest):
         # Guardar el último envío de este email
         last_sent_messages[email] = {"command": command_type, "time": current_time}
 
-        # 🔹 Enviar el mensaje a Telegram
+        # Asegurarse que el cliente esté conectado
+        if not client.is_connected():
+            await client.connect()
+
+        if not await client.is_user_authorized():
+            raise HTTPException(status_code=500, detail="❌ Cliente no autorizado con Telegram.")
+
         await client.send_message(BOT_USERNAME, request.command)
 
         # Esperar la respuesta del BOT
