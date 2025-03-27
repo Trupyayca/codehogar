@@ -10,7 +10,8 @@ import re
 API_ID = 27613963
 API_HASH = 'ac3495a2287928fba9d6d0b889e4e60b'
 BOT_USERNAME = '@CODIGO_HOGAR_BOT'
-SESSION_NAME = "mi_sesion"
+import os
+SESSION_NAME = os.getenv("SESSION_NAME", "mi_sesion_render")
 ALLOWED_DOMAINS = ["xventas.xyz", "rtjg99.com", "gust11.com", "xposemail.com", "rtjg77.com"]
 
 cache_mensajes = {}
