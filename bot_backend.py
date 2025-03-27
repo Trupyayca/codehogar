@@ -6,7 +6,6 @@ from telethon import TelegramClient
 import asyncio
 import time
 import re
-import logging
 
 API_ID = 27613963
 API_HASH = 'ac3495a2287928fba9d6d0b889e4e60b'
@@ -51,8 +50,8 @@ async def send_command(request: CommandRequest):
             raise HTTPException(status_code=400, detail="⚠️ Formato inválido.")
 
         command_type, email = command_parts
-        if command_type.lower() != "/code":
-            raise HTTPException(status_code=400, detail="⚠️ Solo se permite el comando /code.")
+        if command_type.lower() not in ["/code", "/hogar"]:
+            raise HTTPException(status_code=400, detail="⚠️ Comando inválido. Usa /code o /hogar.")
 
         email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
         if not re.match(email_regex, email):
@@ -62,25 +61,26 @@ async def send_command(request: CommandRequest):
         if domain not in ALLOWED_DOMAINS:
             raise HTTPException(status_code=403, detail="❌ Dominio no permitido.")
 
+        cache_key = f"{command_type.lower()}|{email}"
         now = time.time()
         expired = [k for k, v in cache_mensajes.items() if now - v["timestamp"] > CACHE_TTL]
         for k in expired:
             del cache_mensajes[k]
 
-        if email in cache_mensajes:
-            return {"response": cache_mensajes[email]["response"]}
+        if cache_key in cache_mensajes:
+            return {"response": cache_mensajes[cache_key]["response"]}
 
         if not client.is_connected():
             await client.connect()
 
-        full_command = f"/code {email}"
+        full_command = f"{command_type} {email}"
         await client.send_message(BOT_USERNAME, full_command)
 
         for _ in range(10):
             async for message in client.iter_messages(BOT_USERNAME, limit=1):
                 if message.text and message.text != full_command:
                     response = message.text
-                    cache_mensajes[email] = {
+                    cache_mensajes[cache_key] = {
                         "response": response,
                         "timestamp": time.time()
                     }
@@ -98,10 +98,11 @@ async def send_command(request: CommandRequest):
 async def get_last_messages():
     try:
         mensajes = []
-        for email, data in cache_mensajes.items():
+        for k, data in cache_mensajes.items():
+            tipo, correo = k.split("|", 1)
             mensajes.append({
                 "from": "Bot",
-                "text": data["response"],
+                "text": f"{tipo} → {data['response']}",
                 "date": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(data["timestamp"]))
             })
         mensajes = sorted(mensajes, key=lambda x: x["date"], reverse=True)
