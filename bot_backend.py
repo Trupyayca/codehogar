@@ -19,11 +19,16 @@ CACHE_TTL = 15 * 60  # 15 minutos
 
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
+origins = [
+    "https://netcodes.online",
+    "https://www.netcodes.online"
+]
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
