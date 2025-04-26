@@ -89,6 +89,7 @@ async def send_command(request: CommandRequest):
         full_command = f"{command_type} {email}"
         await client.send_message(BOT_USERNAME, full_command)
 
+        response_messages = []  # Store responses
         for _ in range(3):  # Reduced retries
             async for message in client.iter_messages(BOT_USERNAME, limit=1):
                 if message.text and message.text != full_command:
@@ -110,9 +111,15 @@ async def send_command(request: CommandRequest):
                         "shortened_url": shortened_url,
                         "is_error": "⛔️ No hay mensajes" in response_text
                     }
-                    cache_mensajes[cache_key] = {"message": response, "timestamp": time.time()}
-                    return {"messages": [response]}  # Return immediately after getting a response
+                    response_messages.append(response)
+            if response_messages:
+                break  # Exit loop if we have any response
             await asyncio.sleep(1)
+
+        if response_messages:
+            # Cache the *first* response only
+            cache_mensajes[cache_key] = {"message": response_messages[0], "timestamp": time.time()}
+            return {"messages": response_messages}
 
         error_response = {
             "command": full_command,
