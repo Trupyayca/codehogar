@@ -57,7 +57,7 @@ def shorten_url(url: str) -> str:
 
 @app.post("/send_command")
 async def send_command(request: CommandRequest):
-    try {
+    try:
         command_parts = request.command.strip().split(" ")
         if len(command_parts) != 2:
             raise HTTPException(status_code=400, detail="⚠️ Formato inválido.")
