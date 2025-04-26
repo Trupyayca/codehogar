@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,7 +11,7 @@ API_HASH = 'ac3495a2287928fba9d6d0b889e4e60b'
 BOT_USERNAME = '@CODIGO_HOGAR_BOT'
 import os
 SESSION_NAME = os.getenv("SESSION_NAME", "mi_sesion_render")
-ALLOWED_DOMAINS = ["xventas.xyz", "rtjg99.com", "gust11.com", "xposemail.com", "rtjg77.com"]
+ALLOWED_DOMAINS = ["xventas.xyz", "rtjg99.com", "gust11.com", "xposemail.com", "rtjg77.com", "lordpose.com"]  # Dominio agregado
 
 cache_mensajes = {}
 CACHE_TTL = 15 * 60  # 15 minutos
@@ -90,12 +89,27 @@ async def send_command(request: CommandRequest):
                         "response": response,
                         "timestamp": time.time()
                     }
-                    return {"response": response}
+                    usuario, dominio = email.split("@")
+                    correo_parcial = f"{usuario[:2]}...@{dominio}"
+                    return {
+                        "messages": [
+                            {
+                                "tipo": "cliente",
+                                "texto": full_command,
+                                "hora": time.strftime('%H:%M:%S', time.localtime(time.time()))
+                            },
+                            {
+                                "tipo": "bot",
+                                "texto": f"{command_type} → {response} (Correo: {correo_parcial})",
+                                "hora": time.strftime('%H:%M:%S', time.localtime(time.time()))
+                            }
+                        ]
+                    }
             await asyncio.sleep(1)
 
         raise HTTPException(status_code=500, detail="❌ No se recibió respuesta del BOT.")
 
-    except HTTPException:
+    except HTTPException as e:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ Error inesperado: {str(e)}")
@@ -106,12 +120,14 @@ async def get_last_messages():
         mensajes = []
         for k, data in cache_mensajes.items():
             tipo, correo = k.split("|", 1)
+            usuario, dominio = correo.split("@")
+            correo_parcial = f"{usuario[:2]}...@{dominio}"
             mensajes.append({
-                "from": "Bot",
-                "text": f"{tipo} → {data['response']}",
-                "date": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(data["timestamp"]))
+                "tipo": "bot",  # Todos los mensajes del cache son del bot
+                "texto": f"{tipo} → {data['response']} (Correo: {correo_parcial})",
+                "hora": time.strftime('%H:%M:%S', time.localtime(data["timestamp"])) # Solo la hora
             })
-        mensajes = sorted(mensajes, key=lambda x: x["date"], reverse=True)
+        mensajes = sorted(mensajes, key=lambda x: x["hora"], reverse=True)
         return {"messages": mensajes}
     except Exception as e:
         return {"error": str(e)}
